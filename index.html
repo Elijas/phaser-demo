@@ -24,24 +24,55 @@
             drag: 100,
         }
         
-        var debrisProperties = {
-            startingCount: 3,
-            minVelocity: 50,
-            maxVelocity: 300,
-            minAngularVelocity: 0, 
-            maxAngularVelocity: 200,
+        var sideSpawnProperties = {
+            offset: 10,
         }
         
-        var ship, key_left;
-        var debrisGroup = game.add.group();
-        debrisGroup.enableBody = true;
-        debrisGroup.physicsBodyType = Phaser.Physics.ARCADE;
-        var debrisCount = debrisProperties.startingCount;
+        function sideSpawnCoordinates () {
+            var side = Math.round(Math.random());
+            var x, y;
+            if (side) {
+                x = Math.round(Math.random()) * screenWidth;
+                y = Math.random() * screenHeight;
+            } else {
+                x = Math.random() * screenWidth;
+                y = Math.round(Math.random()) * screenHeight;
+            }
+            x += sideSpawnProperties.offset * (x == 0 ? -1 : 1);
+            y += sideSpawnProperties.offset * (y == 0 ? -1 : 1);
+            return {x: x, y: y}
+        }
         
-        function createDebris (x, y, size) {
-            var debris = this.debrisGroup.create(x, y, size);
+        var debrisProperties = {
+            minVelocity: 30,
+            maxVelocity: 250,
+            minAngularVelocity: -200, 
+            maxAngularVelocity: 200,
+            maxCount: 15,
+            period_ms: 1000,
+        }
+        
+        var ship, keyRight, keyLeft, debrisGroup;
+
+        function createDebrisIfNeeded () {
+            console.info(debrisGroup.countLiving());
+            if (debrisGroup.countLiving() < debrisProperties.maxCount)
+                for (i=0;i<debrisProperties.maxCount-debrisGroup.countLiving();i++)
+                    createDebris();
+        }
+        function createDebris () {
+            var point = sideSpawnCoordinates();
+            var debris = game.add.sprite(point.x, point.y, undefined, undefined, debrisGroup);
             debris.anchor.set(0.5, 0.5);
-            debris.body.angularVelocity = game.rnd.integerInRange(debrisProperties[size].minAngularVelocity, debrisProperties[size].maxAngularVelocity);
+            game.physics.enable(debris);
+            var debrisSprite = new Phaser.Rectangle(0, 0, 10, 10);
+            debris.body.setCircle(debrisSprite._radius, 0, 0);
+            var debrisSpriteRing = game.add.graphics();
+            debrisSpriteRing.lineStyle(1, 0xffffff);
+            debrisSpriteRing.drawShape(debrisSprite);
+            debris.addChild(debrisSpriteRing);
+            
+            debris.body.angularVelocity = game.rnd.integerInRange(debrisProperties.minAngularVelocity, debrisProperties.maxAngularVelocity);
 
             var randomAngle = game.math.degToRad(game.rnd.angle());
             var randomVelocity = game.rnd.integerInRange(debrisProperties.minVelocity, debrisProperties.maxVelocity);
@@ -49,19 +80,21 @@
             game.physics.arcade.velocityFromRotation(randomAngle, randomVelocity, debris.body.velocity);
         }
         
-        function goodbye (obj) {obj.destroy();}
-        function checkBoundaries (sprite) {
-            if (sprite.x < 0) {
-                goodbye(sprite);
-            } else if (sprite.x > game.width) {
-                goodbye(sprite);
-
+        function removeObject (obj) {
+            obj.kill();
+            obj.destroy();
+        }
+        function checkBoundaries (sprite) { //info: potentially can be changed with sprite.outOfCameraBoundsKill = true;
+            if (sprite.x < 0 - sideSpawnProperties.offset) {
+                removeObject(sprite);
+            } else if (sprite.x > game.width + sideSpawnProperties.offset) {
+                removeObject(sprite);
             } 
             
-            if (sprite.y < 0) {
-                goodbye(sprite);
-            } else if (sprite.y > game.height) {
-                goodbye(sprite);
+            if (sprite.y < 0 - sideSpawnProperties.offset) {
+                removeObject(sprite);
+            } else if (sprite.y > game.height + sideSpawnProperties.offset) {
+                removeObject(sprite);
             } 
         }
         
@@ -69,20 +102,24 @@
         }
 
         function create () {          
-            
             // Init Graphics
             //src: https://gist.github.com/aaronhampton/bfa4f52bdf786697d011
             ship = game.add.sprite(game.world.centerX, game.world.centerY); 
             ship.anchor.set(0.5, 0.5);
-            ship.events.onOutOfBounds.add(goodbye, this);
             game.physics.enable(ship);
-            var shipSprite = new Phaser.Circle(0, 0, 20);
+            var shipSprite = new Phaser.Circle(0, 0, 30);
             ship.body.setCircle(shipSprite._radius, 0, 0);
             var shipSpriteRing = game.add.graphics();
-            shipSpriteRing.lineStyle(3, 0xffffff);
+            shipSpriteRing.lineStyle(2, 0xffffff);
             shipSpriteRing.drawShape(shipSprite);
             ship.addChild(shipSpriteRing);
-
+            
+            debrisGroup = game.add.group();
+            debrisGroup.enableBody = true;
+            debrisGroup.physicsBodyType = Phaser.Physics.ARCADE;
+            game.time.events.repeat(10, debrisProperties.maxCount, createDebris, this);
+            game.time.events.loop(debrisProperties.period_ms, createDebrisIfNeeded, this);
+            
             // Init Physics
             game.physics.startSystem(Phaser.Physics.ARCADE);
             ship.body.drag.set(shipProperties.drag);
@@ -100,14 +137,15 @@
             
             // Manual Controls
             if (keyLeft.isDown) {
-                game.physics.arcade.accelerationFromRotation(0, shipProperties.acceleration, ship.body.acceleration);
+                //game.physics.arcade.accelerationFromRotation(0, shipProperties.acceleration, ship.body.acceleration);
+                createDebris();
             }
-            else if (keyRight.isDown)
+            else if (keyRight.isDown) {
                 game.physics.arcade.accelerationFromRotation(3.14159265358, shipProperties.acceleration, ship.body.acceleration);
-            else 
+            }
+            else {
                 ship.body.acceleration.set(0);
-            
-            
+            }
         }
     };
         
