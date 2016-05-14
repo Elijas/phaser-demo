@@ -1,0 +1,118 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <title>spark</title>
+        <script src="//cdnjs.cloudflare.com/ajax/libs/phaser/2.4.7/phaser.min.js"></script>
+        <style>
+            canvas {margin: auto; position: absolute; top: 0; left: 0; bottom: 0; right: 0;}
+        </style>
+    </head>
+    <body>
+    <script type="text/javascript">
+
+    window.onload = function() {
+        
+        var screenWidth = Math.max(window.innerWidth, document.documentElement.clientWidth);
+        var screenHeight = Math.max(window.innerHeight,document.documentElement.clientHeight);
+        var antiAlias = false;
+        var game = new Phaser.Game(screenWidth, screenHeight, Phaser.AUTO, '', { preload: preload, create: create, update: update }, false, antiAlias);
+
+        var shipProperties = {
+            acceleration: 300,
+            maxVelocity: 150,
+            drag: 100,
+        }
+        
+        var debrisProperties = {
+            startingCount: 3,
+            minVelocity: 50,
+            maxVelocity: 300,
+            minAngularVelocity: 0, 
+            maxAngularVelocity: 200,
+        }
+        
+        var ship, key_left;
+        var debrisGroup = game.add.group();
+        debrisGroup.enableBody = true;
+        debrisGroup.physicsBodyType = Phaser.Physics.ARCADE;
+        var debrisCount = debrisProperties.startingCount;
+        
+        function createDebris (x, y, size) {
+            var debris = this.debrisGroup.create(x, y, size);
+            debris.anchor.set(0.5, 0.5);
+            debris.body.angularVelocity = game.rnd.integerInRange(debrisProperties[size].minAngularVelocity, debrisProperties[size].maxAngularVelocity);
+
+            var randomAngle = game.math.degToRad(game.rnd.angle());
+            var randomVelocity = game.rnd.integerInRange(debrisProperties.minVelocity, debrisProperties.maxVelocity);
+
+            game.physics.arcade.velocityFromRotation(randomAngle, randomVelocity, debris.body.velocity);
+        }
+        
+        function goodbye (obj) {obj.destroy();}
+        function checkBoundaries (sprite) {
+            if (sprite.x < 0) {
+                goodbye(sprite);
+            } else if (sprite.x > game.width) {
+                goodbye(sprite);
+
+            } 
+            
+            if (sprite.y < 0) {
+                goodbye(sprite);
+            } else if (sprite.y > game.height) {
+                goodbye(sprite);
+            } 
+        }
+        
+        function preload () {
+        }
+
+        function create () {          
+            
+            // Init Graphics
+            //src: https://gist.github.com/aaronhampton/bfa4f52bdf786697d011
+            ship = game.add.sprite(game.world.centerX, game.world.centerY); 
+            ship.anchor.set(0.5, 0.5);
+            ship.events.onOutOfBounds.add(goodbye, this);
+            game.physics.enable(ship);
+            var shipSprite = new Phaser.Circle(0, 0, 20);
+            ship.body.setCircle(shipSprite._radius, 0, 0);
+            var shipSpriteRing = game.add.graphics();
+            shipSpriteRing.lineStyle(3, 0xffffff);
+            shipSpriteRing.drawShape(shipSprite);
+            ship.addChild(shipSpriteRing);
+
+            // Init Physics
+            game.physics.startSystem(Phaser.Physics.ARCADE);
+            ship.body.drag.set(shipProperties.drag);
+            ship.body.maxVelocity.set(shipProperties.maxVelocity);
+            
+            // Init Manual Controls
+            keyLeft = game.input.keyboard.addKey(Phaser.Keyboard.LEFT)
+            keyRight = game.input.keyboard.addKey(Phaser.Keyboard.RIGHT)
+        }
+        
+        function update () {
+            // Boundary check
+            checkBoundaries(ship);
+            debrisGroup.forEachExists(checkBoundaries, this);
+            
+            // Manual Controls
+            if (keyLeft.isDown) {
+                game.physics.arcade.accelerationFromRotation(0, shipProperties.acceleration, ship.body.acceleration);
+            }
+            else if (keyRight.isDown)
+                game.physics.arcade.accelerationFromRotation(3.14159265358, shipProperties.acceleration, ship.body.acceleration);
+            else 
+                ship.body.acceleration.set(0);
+            
+            
+        }
+    };
+        
+        //src: http://www.zekechan.net/debriss-html5-game-tutorial-3/
+    </script>
+
+    </body>
+</html>
