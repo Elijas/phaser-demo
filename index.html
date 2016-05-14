@@ -13,15 +13,18 @@
 
     window.onload = function() {
         
-        var screenWidth = Math.max(window.innerWidth, document.documentElement.clientWidth);
-        var screenHeight = Math.max(window.innerHeight,document.documentElement.clientHeight);
+        var screenWidth = true?800:Math.max(window.innerWidth, document.documentElement.clientWidth);
+        var screenHeight = true?600:Math.max(window.innerHeight,document.documentElement.clientHeight);
         var antiAlias = false;
         var game = new Phaser.Game(screenWidth, screenHeight, Phaser.AUTO, '', { preload: preload, create: create, update: update }, false, antiAlias);
 
+        var wrapBoundaries = true;
+        
         var shipProperties = {
             acceleration: 300,
-            maxVelocity: 150,
+            maxVelocity: 350,
             drag: 100,
+            visionRadius: 190,
         }
         
         var sideSpawnProperties = {
@@ -46,16 +49,15 @@
         var debrisProperties = {
             minVelocity: 30,
             maxVelocity: 250,
-            minAngularVelocity: -200, 
-            maxAngularVelocity: 200,
-            maxCount: 15,
+            minAngularVelocity: 0, 
+            maxAngularVelocity: 0,
+            maxCount: 1,
             period_ms: 1000,
         }
         
         var ship, keyRight, keyLeft, debrisGroup;
 
         function createDebrisIfNeeded () {
-            console.info(debrisGroup.countLiving());
             if (debrisGroup.countLiving() < debrisProperties.maxCount)
                 for (i=0;i<debrisProperties.maxCount-debrisGroup.countLiving();i++)
                     createDebris();
@@ -63,7 +65,7 @@
         function createDebris () {
             var point = sideSpawnCoordinates();
             var debris = game.add.sprite(point.x, point.y, undefined, undefined, debrisGroup);
-            debris.anchor.set(0.5, 0.5);
+            //debris.anchor.set(0.5, 0.5);
             game.physics.enable(debris);
             var debrisSprite = new Phaser.Rectangle(0, 0, 10, 10);
             debris.body.setCircle(debrisSprite._radius, 0, 0);
@@ -86,39 +88,77 @@
         }
         function checkBoundaries (sprite) { //info: potentially can be changed with sprite.outOfCameraBoundsKill = true;
             if (sprite.x < 0 - sideSpawnProperties.offset) {
-                removeObject(sprite);
+                if (wrapBoundaries)
+                    sprite.x = game.width + sideSpawnProperties.offset;
+                else
+                    removeObject(sprite);
             } else if (sprite.x > game.width + sideSpawnProperties.offset) {
-                removeObject(sprite);
-            } 
+                if (wrapBoundaries)
+                    sprite.x = 0 - sideSpawnProperties.offset;
+                else
+                    removeObject(sprite);
+            }
             
             if (sprite.y < 0 - sideSpawnProperties.offset) {
-                removeObject(sprite);
+                if (wrapBoundaries)
+                    sprite.y = game.height + sideSpawnProperties.offset;
+                else
+                    removeObject(sprite);
             } else if (sprite.y > game.height + sideSpawnProperties.offset) {
-                removeObject(sprite);
-            } 
+                if (wrapBoundaries)
+                    sprite.y = 0 - sideSpawnProperties.offset;
+                else
+                    removeObject(sprite);
+            }
+        }
+        
+        function debrisCollision (target, debris) {
+            removeObject(debris);
+        }
+        
+        function buttonYesClick () {
+            console.log("yes");
+        }
+        
+        function buttonNoClick () {
+            console.log("no");
         }
         
         function preload () {
+             game.load.image('yesWhite','assets/y.png');
+             game.load.image('yesColor','assets/ya.png');
+             game.load.image('noWhite','assets/n.png');
+             game.load.image('noColor','assets/na.png');
         }
 
         function create () {          
             // Init Graphics
             //src: https://gist.github.com/aaronhampton/bfa4f52bdf786697d011
             ship = game.add.sprite(game.world.centerX, game.world.centerY); 
-            ship.anchor.set(0.5, 0.5);
+            //ship.anchor.set(0.5, 0.5);
             game.physics.enable(ship);
             var shipSprite = new Phaser.Circle(0, 0, 30);
-            ship.body.setCircle(shipSprite._radius, 0, 0);
-            var shipSpriteRing = game.add.graphics();
-            shipSpriteRing.lineStyle(2, 0xffffff);
-            shipSpriteRing.drawShape(shipSprite);
-            ship.addChild(shipSpriteRing);
+                ship.body.setCircle(shipSprite._radius, 0, 0);
+                var shipSpriteRing = game.add.graphics();
+                shipSpriteRing.lineStyle(2, 0xffffff);
+                shipSpriteRing.drawShape(shipSprite);
+                ship.addChild(shipSpriteRing);
+            var shipVisionSprite = new Phaser.Circle(0, 0, shipProperties.visionRadius);
+                var shipVisionSpriteRing = game.add.graphics();
+                shipVisionSpriteRing.lineStyle(1, 0xaaaaaa);
+                shipVisionSpriteRing.drawShape(shipVisionSprite);
+                ship.addChild(shipVisionSpriteRing);
             
             debrisGroup = game.add.group();
             debrisGroup.enableBody = true;
             debrisGroup.physicsBodyType = Phaser.Physics.ARCADE;
-            game.time.events.repeat(10, debrisProperties.maxCount, createDebris, this);
-            game.time.events.loop(debrisProperties.period_ms, createDebrisIfNeeded, this);
+            //game.time.events.repeat(100, debrisProperties.maxCount, createDebris, this);
+            //if (!wrapBoundaries)
+                //game.time.events.loop(debrisProperties.period_ms, createDebrisIfNeeded, this);
+            
+            for (i=0;i<debrisProperties.maxCount;i++) {
+                createDebris();
+            }
             
             // Init Physics
             game.physics.startSystem(Phaser.Physics.ARCADE);
@@ -135,17 +175,24 @@
             checkBoundaries(ship);
             debrisGroup.forEachExists(checkBoundaries, this);
             
+            game.physics.arcade.overlap(ship, debrisGroup, debrisCollision, null, this);
+        
+            
             // Manual Controls
-            if (keyLeft.isDown) {
-                //game.physics.arcade.accelerationFromRotation(0, shipProperties.acceleration, ship.body.acceleration);
-                createDebris();
-            }
-            else if (keyRight.isDown) {
-                game.physics.arcade.accelerationFromRotation(3.14159265358, shipProperties.acceleration, ship.body.acceleration);
-            }
-            else {
-                ship.body.acceleration.set(0);
-            }
+//            if (keyLeft.isDown) {
+//                //game.physics.arcade.accelerationFromRotation(0, shipProperties.acceleration, ship.body.acceleration);
+//                createDebris();
+//            }
+//            else if (keyRight.isDown) {
+//                game.physics.arcade.accelerationFromRotation(3.14, shipProperties.acceleration, ship.body.acceleration);
+//            }
+//            else {
+//                ship.body.acceleration.set(0);
+//            }
+            
+            // Buttons
+            buttonYes = game.add.button(screenWidth - 170, screenHeight - 340, 'yesColor', buttonYesClick, this);
+            buttonNo = game.add.button(screenWidth - 170, screenHeight - 170, 'noColor', buttonNoClick, this);
         }
     };
         
@@ -154,3 +201,4 @@
 
     </body>
 </html>
+
