@@ -13,8 +13,8 @@
 
     window.onload = function() {
         var fillScreen = false;
-        var screenWidth = fillScreen?Math.max(window.innerWidth, document.documentElement.clientWidth):800;
-        var screenHeight = fillScreen?Math.max(window.innerHeight,document.documentElement.clientHeight):600;
+        var screenWidth = fillScreen?Math.max(window.innerWidth, document.documentElement.clientWidth):400;
+        var screenHeight = fillScreen?Math.max(window.innerHeight,document.documentElement.clientHeight):300;
         var antiAlias = false;
         var game = new Phaser.Game(screenWidth, screenHeight, Phaser.AUTO, '', { preload: preload, create: create, update: update }, false, antiAlias);
 
