@@ -12,23 +12,24 @@
     <script type="text/javascript">
 
     window.onload = function() {
-        
-        var screenWidth = true?800:Math.max(window.innerWidth, document.documentElement.clientWidth);
-        var screenHeight = true?600:Math.max(window.innerHeight,document.documentElement.clientHeight);
+        var fillscreen = false;
+        var screenWidth = fillscreen?Math.max(window.innerWidth, document.documentElement.clientWidth):800;
+        var screenHeight = fillscreen?Math.max(window.innerHeight,document.documentElement.clientHeight):600;
         var antiAlias = false;
         var game = new Phaser.Game(screenWidth, screenHeight, Phaser.AUTO, '', { preload: preload, create: create, update: update }, false, antiAlias);
 
         var wrapBoundaries = true;
         
         var shipProperties = {
-            acceleration: 300,
-            maxVelocity: 350,
-            drag: 100,
-            visionRadius: 190,
+            radius: 45,
+            visionRadius: 115,
+            acceleration: 3000,
+            maxVelocity: 300,
+            drag: 1000,
         }
         
         var sideSpawnProperties = {
-            offset: 10,
+            offset: 0,
         }
         
         function sideSpawnCoordinates () {
@@ -47,11 +48,11 @@
         }
         
         var debrisProperties = {
-            minVelocity: 30,
-            maxVelocity: 250,
+            minVelocity: 40,
+            maxVelocity: 300,
             minAngularVelocity: 0, 
             maxAngularVelocity: 0,
-            maxCount: 1,
+            maxCount: 10,
             period_ms: 1000,
         }
         
@@ -65,7 +66,7 @@
         function createDebris () {
             var point = sideSpawnCoordinates();
             var debris = game.add.sprite(point.x, point.y, undefined, undefined, debrisGroup);
-            //debris.anchor.set(0.5, 0.5);
+            debris.anchor.set(0.5, 0.5);
             game.physics.enable(debris);
             var debrisSprite = new Phaser.Rectangle(0, 0, 10, 10);
             debris.body.setCircle(debrisSprite._radius, 0, 0);
@@ -116,12 +117,34 @@
             removeObject(debris);
         }
         
+        function getAngleToClosestDebris() {
+            var minDist = Infinity;
+            var minDistDebris;
+            debrisGroup.forEachExists(function(debris){
+                var dist = game.physics.arcade.distanceBetween(ship, debris) - shipProperties.radius;
+                if (dist < shipProperties.visionRadius && dist < minDist) {
+                    minDist = dist;
+                    minDistDebris = debris;
+                }
+            });
+            
+            if (minDist != Infinity)
+                return game.math.angleBetween(ship.x, ship.y, minDistDebris.x, minDistDebris.y);
+            else
+                return undefined;
+        }
+        
+        // LEARNING
+        var experienceParameter = 0;
+        
         function buttonYesClick () {
-            console.log("yes");
+            if (getAngleToClosestDebris != undefined)
+                experienceParameter = 1;
         }
         
         function buttonNoClick () {
-            console.log("no");
+            if (getAngleToClosestDebris != undefined)
+                experienceParameter = -1;
         }
         
         function preload () {
@@ -135,15 +158,15 @@
             // Init Graphics
             //src: https://gist.github.com/aaronhampton/bfa4f52bdf786697d011
             ship = game.add.sprite(game.world.centerX, game.world.centerY); 
-            //ship.anchor.set(0.5, 0.5);
+            ship.anchor.set(0.5, 0.5);
             game.physics.enable(ship);
-            var shipSprite = new Phaser.Circle(0, 0, 30);
+            var shipSprite = new Phaser.Circle(0, 0, 2*shipProperties.radius);
                 ship.body.setCircle(shipSprite._radius, 0, 0);
                 var shipSpriteRing = game.add.graphics();
                 shipSpriteRing.lineStyle(2, 0xffffff);
                 shipSpriteRing.drawShape(shipSprite);
                 ship.addChild(shipSpriteRing);
-            var shipVisionSprite = new Phaser.Circle(0, 0, shipProperties.visionRadius);
+            var shipVisionSprite = new Phaser.Circle(0, 0, 2*shipProperties.visionRadius);
                 var shipVisionSpriteRing = game.add.graphics();
                 shipVisionSpriteRing.lineStyle(1, 0xaaaaaa);
                 shipVisionSpriteRing.drawShape(shipVisionSprite);
@@ -177,6 +200,12 @@
             
             game.physics.arcade.overlap(ship, debrisGroup, debrisCollision, null, this);
         
+            // AI Control
+            var angleToDebris = getAngleToClosestDebris();
+            if (angleToDebris != undefined && experienceParameter != 0) 
+                game.physics.arcade.accelerationFromRotation(angleToDebris + ((experienceParameter==-1)?-3.14159:0), shipProperties.acceleration, ship.body.acceleration);
+            else
+                ship.body.acceleration.set(0);
             
             // Manual Controls
 //            if (keyLeft.isDown) {
@@ -191,8 +220,8 @@
 //            }
             
             // Buttons
-            buttonYes = game.add.button(screenWidth - 170, screenHeight - 340, 'yesColor', buttonYesClick, this);
-            buttonNo = game.add.button(screenWidth - 170, screenHeight - 170, 'noColor', buttonNoClick, this);
+            buttonYes = game.add.button(35, screenHeight - 160, 'yesColor', buttonYesClick, this);
+            buttonNo = game.add.button(screenWidth - 160, screenHeight - 160, 'noColor', buttonNoClick, this);
         }
     };
         
