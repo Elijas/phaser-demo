@@ -1,4 +1,3 @@
-# [reinforcement-toy](https://elijas.github.io/reinforcement-toy)
 Simple Phaser game library demo with HTML5
 ## Description
 
