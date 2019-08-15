@@ -1,5 +1,5 @@
 # [reinforcement-toy](https://elijas.github.io/reinforcement-toy)
-Super simple toy example of reinforcement learning concept built in HTML5 + Phaser
+Simple Phaser game library demo with HTML5
 ## Description
 
 - The center circle either seeks or runs away from the debris pieces floating around.
