@@ -1,4 +1,5 @@
-Simple Phaser game library demo with HTML5
+[Simple Phaser game library demo with HTML5](http://elijas.github.io/phaser-demo/).
+
 ## Description
 
 - The center circle either seeks or runs away from the debris pieces floating around.
